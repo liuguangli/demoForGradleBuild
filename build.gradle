@@ -1,0 +1,74 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    
+    repositories {
+        google()
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.0.1'
+        
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        jcenter()
+    }
+}
+
+tasks.create(name:"ciBuild") << {
+    println("ciBuild")
+}
+Task taskCi = tasks.getByName("ciBuild");
+subprojects {
+
+    Project subProject ->
+        println(subProject.name)
+        println(subProject.projectDir)
+        println(subProject.buildDir)
+        println(subProject.buildFile.name)
+        if (["ModuleA", "ModuleB"].contains(subProject.name)) {
+
+            subProject.tasks.create("makeJar") << {
+                println("${subProject.name} makeJar....")
+            }
+            subProject.tasks.create("delBulid") << {
+
+                println("${subProject.name} delBulid....")
+
+            }
+            subProject.afterEvaluate {
+                println("${subProject.name} 组织任务关系")
+                android.libraryVariants.all { variant ->
+                    def variantName = variant.name
+                    tasks.getByName("bundle${variantName.capitalize()}").dependsOn tasks.getByName("delBulid")
+                    tasks.getByName("makeJar").dependsOn tasks.getByName("bundle${variantName.capitalize()}")
+                    taskCi.dependsOn tasks.getByName("makeJar");
+                }
+            }
+        } else {
+            subProject.tasks.create("startBuild") << {
+                println("${subProject.name} startBuild")
+            }
+            subProject.afterEvaluate {
+                println("${subProject.name} 组织任务关系")
+                android.applicationVariants.all { variant ->
+                    def variantName = variant.name
+                    tasks.getByName("generate${variantName.capitalize()}Sources").dependsOn tasks.getByName("startBuild")
+                    tasks.getByName("startBuild").dependsOn taskCi
+                }
+            }
+        }
+
+}
+
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
